@@ -1,0 +1,123 @@
+name: Build Portable ZIPs
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows-x86_64:
+    name: Windows (x86_64)
+    runs-on: windows-latest
+    env:
+      LIBCLANG_PATH: C:\Program Files\LLVM\bin
+      BINDGEN_EXTRA_CLANG_ARGS: -D_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build & Package Portable ZIP
+        shell: pwsh
+        run: .\scripts\package_portable.ps1
+
+      - name: Upload Portable ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: oakd-lite-studio-win64-portable
+          path: dist/oakd-lite-studio-win64-portable.zip
+
+  build-linux:
+    name: Linux (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential cmake pkg-config git clang libclang-dev zip \
+            libusb-1.0-0-dev libudev-dev libdw-dev libelf-dev \
+            libgl1-mesa-dev libxkbcommon-dev libwayland-dev libxrandr-dev libxi-dev libxcursor-dev
+
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build & Package Portable ZIP
+        run: |
+          chmod +x scripts/package_portable.sh
+          ./scripts/package_portable.sh
+
+      - name: Upload Portable ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: oakd-lite-studio-linux-${{ matrix.arch }}-portable
+          path: dist/oakd-lite-studio-linux-${{ matrix.arch }}-portable.zip
+
+  build-macos:
+    name: macOS (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-14
+            libclang_path: /opt/homebrew/opt/llvm/lib
+          - arch: x86_64
+            runner: macos-15-intel
+            libclang_path: /usr/local/opt/llvm/lib
+    runs-on: ${{ matrix.runner }}
+    env:
+      LIBCLANG_PATH: ${{ matrix.libclang_path }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Homebrew dependencies
+        run: brew install cmake pkg-config libusb llvm
+
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build & Package Portable ZIP
+        run: |
+          chmod +x scripts/package_portable.sh
+          ./scripts/package_portable.sh
+
+      - name: Upload Portable ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: oakd-lite-studio-macos-${{ matrix.arch }}-portable
+          path: dist/oakd-lite-studio-macos-${{ matrix.arch }}-portable.zip
+
+  release:
+    name: Publish GitHub Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build-windows-x86_64, build-linux, build-macos]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all portable ZIPs
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Create Release & Attach ZIPs
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*.zip
+          generate_release_notes: true

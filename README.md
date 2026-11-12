@@ -23,7 +23,7 @@ A native, portable Rust GUI application (`eframe` / `egui` + `depthai`) that str
 ## Portable Software (Zero Install)
 Pre-packaged portable bundles include the compiled binary and all required runtime libraries (`depthai-core`, `opencv_world`, `dynamic_calibration`, `libusb-1.0`, and app-local VC++ runtime DLLs on Windows).
 
-1. Extract the portable archive (`oakd-lite-studio-win64-portable.zip` on Windows, or `.tar.gz` on Linux/macOS) into any folder.
+1. Extract the portable archive (`oakd-lite-studio-<os>-<arch>-portable.zip`) into any folder.
 2. Plug in your **OAK-D Lite** via USB 3.0.
 3. Run **`oakd-lite-gui.exe`** (Windows) or **`./oakd-lite-gui`** (Linux/macOS) — no installation required.
 
@@ -37,7 +37,7 @@ Pre-packaged portable bundles include the compiled binary and all required runti
   ```bash
   ./scripts/package_portable.sh
   ```
-  Outputs `dist/oakd-lite-studio-<os>-<arch>-portable.tar.gz`.
+  Outputs `dist/oakd-lite-studio-<os>-<arch>-portable.zip`.
 
 ---
 
