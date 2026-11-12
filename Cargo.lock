@@ -3418,7 +3418,6 @@ dependencies = [
  "anyhow",
  "depthai",
  "eframe",
- "egui",
 ]
 
 [[package]]

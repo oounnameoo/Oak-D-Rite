@@ -5,6 +5,14 @@ use std::path::PathBuf;
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
 
+    // Windows-only: stage runtime DLLs next to the compiled executable.
+    // On Linux and macOS, depthai-sys handles rpath ($ORIGIN / @loader_path) and library staging.
+    if env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows") {
+        stage_windows_runtime_dlls();
+    }
+}
+
+fn stage_windows_runtime_dlls() {
     // Workaround for depthai-sys 0.1.3 downloading opencv_world4110.dll
     // while depthai-core v3.6.1 links against opencv_world4130.dll and delay-loads libusb-1.0.dll on Windows.
     let out_dir = match env::var("OUT_DIR") {
@@ -55,13 +63,7 @@ fn main() {
             }
         }
 
-        candidates.extend([
-            PathBuf::from(r"C:\Windows\System32\libusb-1.0.dll"),
-            PathBuf::from(r"C:\Program Files\PICO Connect\openvr_driver\bin\win64\libusb-1.0.dll"),
-            PathBuf::from(
-                r"C:\Program Files\Epic Games\UE_5.5\Engine\Extras\ThirdPartyNotUE\libimobiledevice\x64\libusb-1.0.dll",
-            ),
-        ]);
+        candidates.push(PathBuf::from(r"C:\Windows\System32\libusb-1.0.dll"));
 
         for candidate in candidates {
             if candidate.exists() {

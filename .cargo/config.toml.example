@@ -1,9 +1,16 @@
 [env]
+# --- Windows Only ---
 # Point LIBCLANG_PATH to the directory containing 64-bit libclang.dll on Windows.
 # Example if installed via LLVM:
 # LIBCLANG_PATH = "C:\\Program Files\\LLVM\\bin"
 # Example if installed via `pip install libclang`:
 # LIBCLANG_PATH = "C:\\Users\\<YourUser>\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\clang\\native"
+#
+# Required on Windows if your libclang version is older than Clang 19 with recent Visual Studio 2022 STL headers:
+# BINDGEN_EXTRA_CLANG_ARGS = "-D_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH"
 
-# Required if your libclang version is older than Clang 19 with recent Visual Studio 2022 STL headers:
-BINDGEN_EXTRA_CLANG_ARGS = "-D_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH"
+# --- macOS Only (if using Homebrew LLVM) ---
+# Intel Mac (x86_64):
+# LIBCLANG_PATH = "/usr/local/opt/llvm/lib"
+# Apple Silicon Mac (arm64):
+# LIBCLANG_PATH = "/opt/homebrew/opt/llvm/lib"
