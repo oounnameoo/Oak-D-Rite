@@ -1,0 +1,12 @@
+[package]
+name = "oakd-lite-gui"
+version = "0.1.0"
+edition = "2021"
+description = "OAK-D Lite RGB + Stereo Depth GUI viewer in Rust"
+
+[dependencies]
+depthai = "0.1"
+eframe = "0.29"
+egui = "0.29"
+anyhow = "1.0"
+
