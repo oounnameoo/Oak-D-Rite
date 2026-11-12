@@ -51,7 +51,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            build-essential cmake pkg-config git clang libclang-dev zip \
+            build-essential cmake ninja-build nasm pkg-config git clang libclang-dev zip \
             libusb-1.0-0-dev libudev-dev libdw-dev libelf-dev \
             libgl1-mesa-dev libxkbcommon-dev libwayland-dev libxrandr-dev libxi-dev libxcursor-dev
 
@@ -88,10 +88,29 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install Homebrew dependencies
-        run: brew install cmake pkg-config libusb llvm
+        run: brew install cmake ninja nasm pkg-config libusb llvm
 
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+
+      - name: Pre-build depthai-core v3.6.1 (macOS)
+        run: |
+          if [ ! -f target/release/dai-build/v3.6.1/libdepthai-core.a ]; then
+            mkdir -p target/release/dai-build/v3.6.1
+            if [ ! -d target/release/dai-build/v3.6.1/depthai-core ]; then
+              git clone --branch v3.6.1 --recursive https://github.com/luxonis/depthai-core.git target/release/dai-build/v3.6.1/depthai-core
+            fi
+            cmake -S target/release/dai-build/v3.6.1/depthai-core -B target/release/dai-build/v3.6.1 -G Ninja \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DBUILD_SHARED_LIBS=OFF \
+              -DDEPTHAI_BUILD_DOCS=OFF \
+              -DDEPTHAI_BUILD_EXAMPLES=OFF \
+              -DDEPTHAI_BUILD_TESTS=OFF \
+              -DDEPTHAI_OPENCV_SUPPORT=ON \
+              -DDEPTHAI_DYNAMIC_CALIBRATION_SUPPORT=OFF \
+              -DDEPTHAI_ENABLE_EVENTS_MANAGER=ON
+            cmake --build target/release/dai-build/v3.6.1 --parallel
+          fi
 
       - name: Build & Package Portable ZIP
         run: |
@@ -121,3 +140,4 @@ jobs:
         with:
           files: artifacts/*.zip
           generate_release_notes: true
+

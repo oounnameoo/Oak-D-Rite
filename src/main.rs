@@ -482,7 +482,7 @@ impl OakdGuiApp {
     fn render_view_card(&mut self, ui: &mut egui::Ui, panel: ViewPanel, allocated_size: Vec2) {
         let card_frame = Frame::group(ui.style())
             .fill(Color32::from_rgb(22, 24, 28))
-            .stroke(Stroke::new(1.0, Color32::from_rgb(55, 60, 70)))
+            .stroke(Stroke::new(1.0_f32, Color32::from_rgb(55, 60, 70)))
             .rounding(Rounding::same(6.0))
             .inner_margin(Margin::same(8.0));
 

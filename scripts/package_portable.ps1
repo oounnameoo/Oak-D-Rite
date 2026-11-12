@@ -1,7 +1,8 @@
-$ErrorActionPreference = "Stop"
+﻿$ErrorActionPreference = "Stop"
 
 $Root = Split-Path -Parent $PSScriptRoot
-$ReleaseDir = Join-Path $Root "target\release"
+$TargetDir = Join-Path $Root "target"
+$ReleaseDir = Join-Path $TargetDir "release"
 $DistDir = Join-Path $Root "dist"
 $BundleName = "oakd-lite-studio-win64-portable"
 $BundleDir = Join-Path $DistDir $BundleName
@@ -18,20 +19,34 @@ if (Test-Path $BundleDir) { Remove-Item -Recurse -Force $BundleDir }
 if (Test-Path $ZipPath) { Remove-Item -Force $ZipPath }
 New-Item -ItemType Directory -Force -Path $BundleDir | Out-Null
 
-$AppFiles = @(
-    "oakd-lite-gui.exe",
-    "depthai-core.dll",
-    "opencv_world4130.dll",
-    "dynamic_calibration.dll",
-    "libusb-1.0.dll"
+function Find-RuntimeFile([string[]]$CandidateNames) {
+    foreach ($name in $CandidateNames) {
+        $direct = Join-Path $ReleaseDir $name
+        if (Test-Path $direct) { return $direct }
+    }
+    foreach ($name in $CandidateNames) {
+        $found = Get-ChildItem -Path $TargetDir -Filter $name -Recurse -File -ErrorAction SilentlyContinue |
+            Select-Object -First 1
+        if ($found) { return $found.FullName }
+    }
+    return $null
+}
+
+Copy-Item (Join-Path $ReleaseDir "oakd-lite-gui.exe") -Destination $BundleDir
+
+$RequiredDlls = @(
+    @{ Dest = "depthai-core.dll"; Sources = @("depthai-core.dll") },
+    @{ Dest = "opencv_world4130.dll"; Sources = @("opencv_world4130.dll", "opencv_world4110.dll") },
+    @{ Dest = "dynamic_calibration.dll"; Sources = @("dynamic_calibration.dll") },
+    @{ Dest = "libusb-1.0.dll"; Sources = @("libusb-1.0.dll") }
 )
 
-foreach ($f in $AppFiles) {
-    $src = Join-Path $ReleaseDir $f
-    if (-not (Test-Path $src)) {
-        throw "Missing required runtime file: $src"
+foreach ($item in $RequiredDlls) {
+    $src = Find-RuntimeFile $item.Sources
+    if (-not $src) {
+        throw "Missing required runtime file: $($item.Dest) (searched $TargetDir)"
     }
-    Copy-Item $src -Destination $BundleDir
+    Copy-Item $src -Destination (Join-Path $BundleDir $item.Dest)
 }
 
 # Bundle app-local VC++ 2015-2022 runtime DLLs so no installer is needed on clean Windows PCs
