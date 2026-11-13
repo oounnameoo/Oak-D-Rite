@@ -111,6 +111,9 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: Pre-build depthai-core v3.6.1 (macOS)
+        env:
+          CMAKE_POLICY_VERSION_MINIMUM: "3.5"
+          VCPKG_ENV_PASSTHROUGH_UNTRACKED: CMAKE_POLICY_VERSION_MINIMUM
         run: |
           DAI_BUILD_DIR="target/dai-build/v3.6.1"
           OPENCV_PREFIX="$(brew --prefix opencv)"
@@ -125,8 +128,23 @@ jobs:
             if [ ! -d "${DAI_BUILD_DIR}/depthai-core" ]; then
               git clone --branch v3.6.1 --recursive https://github.com/luxonis/depthai-core.git "${DAI_BUILD_DIR}/depthai-core"
             fi
-            cmake -S "${DAI_BUILD_DIR}/depthai-core" -B "${DAI_BUILD_DIR}" -G Ninja \
+
+            # Create a release-only vcpkg overlay triplet so vcpkg skips Debug (-dbg) builds
+            TRIPLET_NAME=$([ "${{ matrix.arch }}" = "arm64" ] && echo "arm64-osx" || echo "x64-osx")
+            OVERLAY_DIR="${PWD}/${DAI_BUILD_DIR}/vcpkg-triplets"
+            mkdir -p "${OVERLAY_DIR}"
+            cat > "${OVERLAY_DIR}/${TRIPLET_NAME}.cmake" <<EOF
+          set(VCPKG_TARGET_ARCHITECTURE $([ "${{ matrix.arch }}" = "arm64" ] && echo "arm64" || echo "x64"))
+          set(VCPKG_CRT_LINKAGE dynamic)
+          set(VCPKG_LIBRARY_LINKAGE static)
+          set(VCPKG_CMAKE_SYSTEM_NAME Darwin)
+          set(VCPKG_OSX_ARCHITECTURES $([ "${{ matrix.arch }}" = "arm64" ] && echo "arm64" || echo "x86_64"))
+          set(VCPKG_BUILD_TYPE release)
+          EOF
+
+            if ! cmake -S "${DAI_BUILD_DIR}/depthai-core" -B "${DAI_BUILD_DIR}" -G Ninja \
               -DCMAKE_BUILD_TYPE=Release \
+              -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
               -DBUILD_SHARED_LIBS=OFF \
               -DDEPTHAI_BUILD_DOCS=OFF \
               -DDEPTHAI_BUILD_EXAMPLES=OFF \
@@ -134,9 +152,20 @@ jobs:
               -DDEPTHAI_OPENCV_SUPPORT=ON \
               -DDEPTHAI_DYNAMIC_CALIBRATION_SUPPORT=OFF \
               -DDEPTHAI_ENABLE_EVENTS_MANAGER=ON \
+              -DVCPKG_OVERLAY_TRIPLETS="${OVERLAY_DIR}" \
+              -DVCPKG_TARGET_TRIPLET="${TRIPLET_NAME}" \
               -DOpenCV_DIR="${OPENCV_PREFIX}/lib/cmake/opencv4" \
-              -DCMAKE_PREFIX_PATH="${OPENCV_PREFIX};${BREW_PREFIX}" \
-              -DCMAKE_FIND_ROOT_PATH="${OPENCV_PREFIX};${BREW_PREFIX}"
+              -DCMAKE_PREFIX_PATH="${OPENCV_PREFIX};${BREW_PREFIX}"; then
+              echo "=== CMake/vcpkg failed; dumping logs ==="
+              cat "${DAI_BUILD_DIR}/vcpkg-manifest-install.log" 2>/dev/null || true
+              for log in "${DAI_BUILD_DIR}"/vcpkg/buildtrees/*/*-out.log "${DAI_BUILD_DIR}"/vcpkg/buildtrees/*/*-err.log; do
+                if [ -f "$log" ]; then
+                  echo "--- $log ---"
+                  tail -n 60 "$log"
+                fi
+              done
+              exit 1
+            fi
             cmake --build "${DAI_BUILD_DIR}" --parallel
           fi
 
