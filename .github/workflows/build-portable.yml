@@ -19,7 +19,7 @@ jobs:
       LIBCLANG_PATH: C:\Program Files\LLVM\bin
       BINDGEN_EXTRA_CLANG_ARGS: -D_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
 
@@ -44,7 +44,7 @@ jobs:
         run: .\scripts\package_portable.ps1
 
       - name: Upload Portable ZIP
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: oakd-lite-studio-win64-portable
           path: dist/oakd-lite-studio-win64-portable.zip
@@ -61,7 +61,7 @@ jobs:
             runner: ubuntu-24.04-arm
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install system dependencies
         run: |
@@ -80,7 +80,7 @@ jobs:
           ./scripts/package_portable.sh
 
       - name: Upload Portable ZIP
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: oakd-lite-studio-linux-${{ matrix.arch }}-portable
           path: dist/oakd-lite-studio-linux-${{ matrix.arch }}-portable.zip
@@ -92,7 +92,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download all portable ZIPs
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
           merge-multiple: true
