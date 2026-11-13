@@ -5,10 +5,43 @@ use std::path::PathBuf;
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
 
-    // Windows-only: stage runtime DLLs next to the compiled executable.
-    // On Linux and macOS, depthai-sys handles rpath ($ORIGIN / @loader_path) and library staging.
-    if env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows") {
-        stage_windows_runtime_dlls();
+    match env::var("CARGO_CFG_TARGET_OS").as_deref() {
+        Ok("windows") => stage_windows_runtime_dlls(),
+        Ok("macos") => configure_macos_linking(),
+        _ => {}
+    }
+}
+
+fn configure_macos_linking() {
+    // Add Homebrew library search paths for both Apple Silicon (/opt/homebrew) and Intel (/usr/local)
+    for prefix in [
+        "/opt/homebrew/lib",
+        "/opt/homebrew/opt/libusb/lib",
+        "/opt/homebrew/opt/opencv/lib",
+        "/usr/local/lib",
+        "/usr/local/opt/libusb/lib",
+        "/usr/local/opt/opencv/lib",
+    ] {
+        let p = PathBuf::from(prefix);
+        if p.exists() {
+            println!("cargo:rustc-link-search=native={}", p.display());
+        }
+    }
+
+    println!("cargo:rustc-link-lib=usb-1.0");
+    println!("cargo:rustc-link-lib=c++");
+
+    for framework in [
+        "IOKit",
+        "CoreFoundation",
+        "Security",
+        "SystemConfiguration",
+        "AVFoundation",
+        "CoreMedia",
+        "CoreVideo",
+        "Accelerate",
+    ] {
+        println!("cargo:rustc-link-lib=framework={framework}");
     }
 }
 
@@ -32,7 +65,7 @@ fn stage_windows_runtime_dlls() {
     }
 
     let src_4110d = profile_dir.join("opencv_world4110d.dll");
-    let dst_4130d = profile_dir.join("opencv_world4130d.dll");
+    let dst_4130d = profile_dir.join("opencv_world4110d.dll");
     if src_4110d.exists() && !dst_4130d.exists() {
         let _ = fs::copy(&src_4110d, &dst_4130d);
     }

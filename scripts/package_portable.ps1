@@ -32,6 +32,36 @@ function Find-RuntimeFile([string[]]$CandidateNames) {
     return $null
 }
 
+# Ensure 64-bit libusb-1.0.dll is available (download official libusb v1.0.27 if not already in target/)
+if (-not (Find-RuntimeFile @("libusb-1.0.dll"))) {
+    Write-Host "libusb-1.0.dll not found in target/; downloading official libusb v1.0.27 Windows binaries..."
+    $LibusbTemp = Join-Path $TargetDir "libusb-download"
+    New-Item -ItemType Directory -Force -Path $LibusbTemp | Out-Null
+    $ArchivePath = Join-Path $LibusbTemp "libusb-1.0.27.7z"
+    $DownloadUrl = "https://github.com/libusb/libusb/releases/download/v1.0.27/libusb-1.0.27.7z"
+
+    Invoke-WebRequest -Uri $DownloadUrl -OutFile $ArchivePath -UseBasicParsing
+
+    $SevenZip = "7z"
+    if (-not (Get-Command $SevenZip -ErrorAction SilentlyContinue)) {
+        $Default7z = "C:\Program Files\7-Zip\7z.exe"
+        if (Test-Path $Default7z) { $SevenZip = $Default7z }
+    }
+    & $SevenZip x $ArchivePath "-o$LibusbTemp" -y | Out-Null
+
+    $ExtractedDll = Get-ChildItem -Path $LibusbTemp -Filter "libusb-1.0.dll" -Recurse -File |
+        Where-Object { $_.FullName -match "MS64[\\/]dll" } |
+        Select-Object -First 1
+
+    if (-not $ExtractedDll) {
+        throw "Failed to extract 64-bit MS64 libusb-1.0.dll from libusb-1.0.27.7z"
+    }
+
+    New-Item -ItemType Directory -Force -Path $ReleaseDir | Out-Null
+    Copy-Item $ExtractedDll.FullName -Destination (Join-Path $ReleaseDir "libusb-1.0.dll") -Force
+    Write-Host "Staged libusb-1.0.dll from $($ExtractedDll.FullName)"
+}
+
 Copy-Item (Join-Path $ReleaseDir "oakd-lite-gui.exe") -Destination $BundleDir
 
 $RequiredDlls = @(
